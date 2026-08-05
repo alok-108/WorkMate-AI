@@ -1,0 +1,18 @@
+{
+  "name": "workmate-ai",
+  "version": "0.1.0",
+  "description": "Local-first AI desktop agent platform for the Indian SMB/BPO market",
+  "main": "integration/index.js",
+  "scripts": {
+    "start": "node integration/index.js",
+    "dev": "nodemon integration/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.17.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}

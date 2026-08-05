@@ -1,0 +1,26 @@
+# Vendored component repos -- fetched by setup-windows.ps1, not part of this repo
+/LeAgent/
+/Everfern/
+/coworker/
+/SamarthyaBot/
+/fazm/
+/skales/
+/GhostDesk/
+
+# Dependencies
+node_modules/
+
+# Local runtime data / secrets
+/logs/
+*.log
+.env
+.env.*
+!.env.example
+
+# Local tool downloads / caches
+/tools/
+/mongodb-data/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WorkMate AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6C63FF;
+            --primary-dark: #5A52D5;
+            --bg: #0A0A1A;
+            --bg-card: #141428;
+            --bg-input: #1E1E3A;
+            --text: #E8E8F0;
+            --text-dim: #8888AA;
+            --border: #2A2A4A;
+            --success: #4CAF50;
+            --error: #FF6B6B;
+            --warning: #FFD93D;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), #A78BFA);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 260px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 16px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .sidebar h3 {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+        }
+
+        .sidebar .agent-item {
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar .agent-item:hover {
+            background: var(--bg-input);
+        }
+
+        .sidebar .agent-item .icon {
+            font-size: 16px;
+        }
+
+        .sidebar .agent-item .name {
+            font-size: 14px;
+        }
+
+        .sidebar .agent-item .badge {
+            margin-left: auto;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: var(--bg-input);
+            color: var(--text-dim);
+        }
+
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 16px 24px;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .chat-messages .message {
+            margin-bottom: 16px;
+            display: flex;
+            gap: 12px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .chat-messages .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .chat-messages .message .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .chat-messages .message.agent .avatar {
+            background: var(--primary);
+        }
+
+        .chat-messages .message.user .avatar {
+            background: var(--bg-input);
+        }
+
+        .chat-messages .message .bubble {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .chat-messages .message.user .bubble {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .chat-messages .message .bubble .timestamp {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 6px;
+            display: block;
+        }
+
+        .input-area {
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .input-area textarea {
+            flex: 1;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: var(--text);
+            font-size: 14px;
+            resize: none;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+            min-height: 52px;
+            max-height: 120px;
+        }
+
+        .input-area textarea:focus {
+            border-color: var(--primary);
+        }
+
+        .input-area .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            background: var(--primary);
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .input-area .btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .input-area .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .input-area .btn-voice {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 12px 16px;
+        }
+
+        .input-area .btn-voice.recording {
+            border-color: var(--error);
+            color: var(--error);
+            animation: pulse 1s infinite;
+        }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <h1>WorkMate AI</h1>
+        <div class="status">
+            <span class="status-dot"></span>
+            <span id="statusText">Connecting...</span>
+            <span style="margin-left: 12px; color: var(--text-dim);">|</span>
+            <span id="agentCount" style="color: var(--text-dim);">0 agents active</span>
+        </div>
+    </header>
+
+    <div class="main">
+        <aside class="sidebar">
+            <h3>Agents</h3>
+            <div id="agentList"></div>
+
+            <hr style="border-color: var(--border); margin: 16px 0;">
+
+            <h3>Quick Actions</h3>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+                <button class="btn" style="width: 100%; padding: 10px;" onclick="sendQuickAction('automate', 'Process my emails and organize them')">Process Emails</button>
+                <button class="btn" style="width: 100%; padding: 10px; background: var(--bg-input);" onclick="sendQuickAction('automate', 'Generate a weekly report from my data')">Generate Report</button>
+                <button class="btn" style="width: 100%; padding: 10px; background: var(--bg-input);" onclick="sendQuickAction('india-workflow', 'Process GST returns')">GST Returns</button>
+                <button class="btn" style="width: 100%; padding: 10px; background: var(--bg-input);" onclick="sendQuickAction('legacy-app', 'Open Tally and reconcile accounts')">Tally Reconciliation</button>
+            </div>
+        </aside>
+
+        <div class="chat-area">
+            <div class="chat-messages" id="chatMessages">
+                <div class="message agent">
+                    <div class="avatar">AI</div>
+                    <div class="bubble">
+                        <strong>Welcome to WorkMate AI.</strong><br><br>
+                        Type a task below or use a quick action to get started.
+                        <span class="timestamp">Just now</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <textarea id="chatInput" placeholder="Tell me what to do..." rows="1"></textarea>
+                <button class="btn btn-voice" id="voiceBtn" title="Voice input">Mic</button>
+                <button class="btn" id="sendBtn">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            ws: null,
+            connected: false,
+            agents: [
+                { id: 'leagent', name: 'LeAgent', status: 'ready', desc: 'Core Brain' },
+                { id: 'everfern', name: 'Everfern', status: 'ready', desc: 'Computer Control' },
+                { id: 'coworker', name: 'Coworker', status: 'ready', desc: 'Desktop Interface' },
+                { id: 'fazm', name: 'Fazm', status: 'ready', desc: 'Voice Control (macOS only)' },
+                { id: 'skales', name: 'Skales', status: 'ready', desc: 'Multi-Agent' },
+                { id: 'samarthya', name: 'SamarthyaBot', status: 'ready', desc: 'India Workflows' },
+                { id: 'ghostdesk', name: 'GhostDesk', status: 'ready', desc: 'Legacy Apps' }
+            ],
+            messages: [],
+            isProcessing: false
+        };
+
+        const $ = (id) => document.getElementById(id);
+        const chatMessages = $('chatMessages');
+        const chatInput = $('chatInput');
+        const sendBtn = $('sendBtn');
+        const voiceBtn = $('voiceBtn');
+        const agentList = $('agentList');
+        const statusText = $('statusText');
+        const agentCount = $('agentCount');
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const token = new URLSearchParams(window.location.search).get('token') || '';
+            const wsUrl = `${protocol}//${window.location.host}?token=${encodeURIComponent(token)}`;
+
+            state.ws = new WebSocket(wsUrl);
+
+            state.ws.onopen = () => {
+                state.connected = true;
+                statusText.textContent = 'Connected';
+                statusText.style.color = '#4CAF50';
+                updateAgentList();
+                addMessage('system', 'Connected to WorkMate AI server');
+                updateUI();
+            };
+
+            state.ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleServerMessage(data);
+            };
+
+            state.ws.onclose = () => {
+                state.connected = false;
+                statusText.textContent = 'Disconnected';
+                statusText.style.color = '#FF6B6B';
+                updateUI();
+                setTimeout(connectWebSocket, 3000);
+            };
+
+            state.ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        function handleServerMessage(data) {
+            switch (data.type) {
+                case 'result':
+                    addMessage('agent', (data.data && data.data.result) || 'Task completed.', true);
+                    state.isProcessing = false;
+                    updateUI();
+                    break;
+                case 'error':
+                    addMessage('agent', `Error: ${data.error}`, true);
+                    state.isProcessing = false;
+                    updateUI();
+                    break;
+                default:
+                    console.log('Unknown message type:', data);
+            }
+        }
+
+        function sendMessage() {
+            const text = chatInput.value.trim();
+            if (!text || state.isProcessing || !state.connected) return;
+
+            addMessage('user', text);
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+
+            state.isProcessing = true;
+            updateUI();
+
+            state.ws.send(JSON.stringify({ action: 'automate', params: { description: text } }));
+            addMessage('agent', 'Processing your request...', false, true);
+        }
+
+        function sendQuickAction(action, description) {
+            if (!state.connected || state.isProcessing) return;
+
+            addMessage('user', description);
+            state.isProcessing = true;
+            updateUI();
+
+            state.ws.send(JSON.stringify({ action, params: { description } }));
+            addMessage('agent', 'Processing...', false, true);
+        }
+
+        let isRecording = false;
+        let recognition = null;
+
+        function toggleVoice() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('Voice input is not supported in this browser. Try Chrome or Edge.');
+                return;
+            }
+            if (isRecording) {
+                stopRecording();
+                return;
+            }
+            startRecording();
+        }
+
+        function startRecording() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-IN';
+            recognition.continuous = false;
+            recognition.interimResults = true;
+
+            recognition.onresult = (event) => {
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        chatInput.value = event.results[i][0].transcript;
+                        sendMessage();
+                    }
+                }
+            };
+
+            recognition.onend = () => stopRecording();
+
+            recognition.start();
+            isRecording = true;
+            voiceBtn.classList.add('recording');
+        }
+
+        function stopRecording() {
+            if (recognition) {
+                recognition.stop();
+                recognition = null;
+            }
+            isRecording = false;
+            voiceBtn.classList.remove('recording');
+        }
+
+        function addMessage(type, text, replaceProcessing, isTemp) {
+            if (replaceProcessing) {
+                const last = chatMessages.lastElementChild;
+                if (last && last.querySelector('.bubble')?.textContent.includes('Processing')) {
+                    chatMessages.removeChild(last);
+                }
+            }
+
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar';
+            avatar.textContent = type === 'user' ? 'You' : type === 'system' ? 'Sys' : 'AI';
+
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.textContent = text;
+
+            if (!isTemp && type !== 'system') {
+                const timestamp = document.createElement('span');
+                timestamp.className = 'timestamp';
+                timestamp.textContent = new Date().toLocaleTimeString();
+                bubble.appendChild(timestamp);
+            }
+
+            div.appendChild(avatar);
+            div.appendChild(bubble);
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            state.messages.push({ type, text, timestamp: new Date() });
+        }
+
+        function updateAgentList() {
+            agentList.innerHTML = '';
+            let activeCount = 0;
+
+            state.agents.forEach((agent) => {
+                if (agent.status === 'ready') activeCount++;
+                const div = document.createElement('div');
+                div.className = 'agent-item';
+                div.title = agent.desc;
+                div.innerHTML = `<span class="name">${agent.name}</span><span class="badge">${agent.status}</span>`;
+                agentList.appendChild(div);
+            });
+
+            agentCount.textContent = `${activeCount} agents active`;
+        }
+
+        function updateUI() {
+            sendBtn.disabled = state.isProcessing || !state.connected;
+            chatInput.disabled = state.isProcessing || !state.connected;
+            sendBtn.textContent = state.isProcessing ? 'Working...' : 'Send';
+        }
+
+        chatInput.addEventListener('input', () => {
+            chatInput.style.height = 'auto';
+            chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+        });
+
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        sendBtn.addEventListener('click', sendMessage);
+        voiceBtn.addEventListener('click', toggleVoice);
+        updateUI();
+        connectWebSocket();
+    </script>
+</body>
+</html>
