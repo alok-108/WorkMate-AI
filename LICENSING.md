@@ -12,8 +12,8 @@
 
 ## Why this matters
 
-WorkMate AI's stated goal is to be a commercial product that beats larger commercial competitors
-and other competitors. Skales (multi-agent orchestration) and GhostDesk
+WorkMate AI's stated goal is to be a commercial product that competes with
+larger commercial players in this space. Skales (multi-agent orchestration) and GhostDesk
 (legacy app automation) are exactly the kind of thing their licenses
 prohibit bundling into: a commercial product that competes with what the
 licensor could otherwise sell.
