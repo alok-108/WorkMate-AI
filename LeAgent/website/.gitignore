@@ -1,0 +1,15 @@
+node_modules
+dist
+.DS_Store
+*.log
+.env
+.env.local
+public/install.sh
+public/install.ps1
+public/install.bat
+public/docs/
+public/robots.txt
+public/agents.txt
+public/agents.json
+public/llms.txt
+public/sitemap.xml

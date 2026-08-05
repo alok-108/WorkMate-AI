@@ -1,0 +1,94 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-electron/
+release/
+.next/
+out/
+
+# Environment files
+.env
+.env.local
+.env*.local
+build.env
+
+# Auto-updater dev config (written by updater/index.ts when !app.isPackaged,
+# required by electron-updater's forceDevUpdateConfig)
+apps/desktop/dev-app-update.yml
+
+# Vercel
+.vercel/
+
+# TypeScript
+*.tsbuildinfo
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Playwright
+playwright-report/
+test-results/
+apps/desktop/e2e/test-results/
+apps/desktop/e2e/html-report/
+apps/desktop/e2e/test-results.json
+apps/desktop/e2e/provider-tests/test-results/
+apps/desktop/e2e/provider-tests/html-report/
+apps/desktop/e2e/provider-tests/test-results.json
+apps/desktop/e2e/provider-tests/secrets.json
+
+# Test coverage
+coverage/
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
+
+# Docs
+docs/plans/
+
+# Claude Code
+.claude/
+!.claude/PROJECT_RULES.md
+!.claude/.env.example
+.mcp.json
+
+# Speckit
+.specify/
+specs/
+
+# Misc
+*.pem
+.turbo/
+.pnpm-store/
+
+# Git worktrees
+.worktrees/
+
+# Bundled Node.js binaries (downloaded via `pnpm -F @accomplish/desktop download:nodejs`)
+apps/desktop/resources/nodejs/
+
+# Test local agent Chrome profile
+.accomplish-test-local-agent-chrome/
+
+# MCP tools npm lockfiles (generated at runtime by postinstall.cjs, not committed)
+packages/agent-core/mcp-tools/*/package-lock.json
+packages/agent-core/mcp-tools/package-lock.json
+/.run/
+packages/agent-core/mcp-tools/dev-browser/server.mjs
+packages/agent-core/mcp-tools/dev-browser/.browser-data/

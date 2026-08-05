@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+#──────────────────────────────────────────────────────────────────────
+# LeAgent Desktop — macOS build (arm64 + x64)
+#
+# Usage:
+#   ./build-mac.sh                        # version from electron/package.json
+#   ./build-mac.sh --version 1.2.0        # custom version
+#   ./build-mac.sh --arch arm64           # single arch
+#   ./build-mac.sh --skip-runtime         # skip python/uv download
+#
+# Code signing env vars (optional — skipped if unset):
+#   APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
+#──────────────────────────────────────────────────────────────────────
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DEFAULT_VERSION="$(node -p "require('$SCRIPT_DIR/../electron/package.json').version")"
+VERSION="$DEFAULT_VERSION"
+ARCH="arm64,x64"
+SKIP_RUNTIME=false
+SKIP_BACKEND=false
+SKIP_FRONTEND=false
+SKIP_COMPILEALL=false
+CHANNEL="stable"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --version)       VERSION="$2"; shift 2 ;;
+    --arch)          ARCH="$2"; shift 2 ;;
+    --channel)       CHANNEL="$2"; shift 2 ;;
+    --skip-runtime)  SKIP_RUNTIME=true; shift ;;
+    --skip-backend)  SKIP_BACKEND=true; shift ;;
+    --skip-frontend) SKIP_FRONTEND=true; shift ;;
+    --skip-compileall) SKIP_COMPILEALL=true; shift ;;
+    *) echo "Unknown arg: $1"; exit 1 ;;
+  esac
+done
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO="$(cd "$SCRIPT_DIR/../.." && pwd)"
+DESKTOP_ELECTRON="$REPO/desktop/electron"
+IFS=',' read -ra ARCHES <<< "$ARCH"
+
+echo "============================================"
+echo "  LeAgent Desktop — macOS Build"
+echo "  Version : $VERSION"
+echo "  Arch    : $ARCH"
+echo "  Channel : $CHANNEL"
+echo "============================================"
+
+# ── 1. Runtime (Python + uv) ──
+# Icons run after Electron npm ci (sharp is a desktop/electron dep).
+if [ "$SKIP_RUNTIME" = false ]; then
+  # Build platform list from arch
+  PLATFORMS=""
+  for a in "${ARCHES[@]}"; do
+    PLATFORMS="${PLATFORMS:+$PLATFORMS,}mac-${a}"
+  done
+  echo ""
+  echo "==> prepare-runtime.mjs --platform $PLATFORMS"
+  node "$SCRIPT_DIR/prepare-runtime.mjs" --platform "$PLATFORMS"
+else
+  echo "  ⚠ SkipRuntime: python-build-standalone + uv not refreshed."
+fi
+
+# ── 2. Backend payload ──
+if [ "$SKIP_BACKEND" = false ]; then
+  echo ""
+  echo "==> prepare-backend-payload.mjs"
+  node "$SCRIPT_DIR/prepare-backend-payload.mjs"
+else
+  echo "  ⚠ SkipBackend: backend source tree not refreshed."
+fi
+
+# ── 3. Frontend build ──
+if [ "$SKIP_FRONTEND" = false ]; then
+  echo ""
+  echo "==> Frontend build (Vite)"
+  pushd "$REPO/frontend" > /dev/null
+  # Relative /api/v1 — same-origin with backend-served SPA (any serverPort).
+  export VITE_DESKTOP=true
+  unset VITE_API_BASE_URL
+  npm ci
+  npm run build
+  unset VITE_DESKTOP
+  popd > /dev/null
+else
+  echo "  ⚠ SkipFrontend: frontend/dist not rebuilt."
+fi
+
+# ── 4. Compile bytecode ──
+if [ "$SKIP_COMPILEALL" = false ]; then
+  PAYLOAD_DIR="$DESKTOP_ELECTRON/resources/backend-payload"
+  # Use the first bundled Python that can execute on this host.
+  RUNTIME_PY=""
+  for a in "${ARCHES[@]}"; do
+    candidate="$DESKTOP_ELECTRON/resources/runtime/mac-${a}/python/bin/python3"
+    if [ -x "$candidate" ] && "$candidate" --version > /dev/null 2>&1; then
+      RUNTIME_PY="$candidate"
+      break
+    fi
+  done
+  if [ -n "$RUNTIME_PY" ] && [ -d "$PAYLOAD_DIR/leagent" ]; then
+    echo ""
+    echo "==> compileall backend payload"
+    "$RUNTIME_PY" -m compileall -q "$PAYLOAD_DIR/leagent" || echo "  ⚠ compileall failed (non-fatal)"
+  fi
+else
+  echo "  ⚠ SkipCompileall: .pyc cache not refreshed."
+fi
+
+# ── 5. Electron build + pack ──
+echo ""
+echo "==> Electron npm ci + build + pack"
+pushd "$DESKTOP_ELECTRON" > /dev/null
+
+npm ci
+
+echo ""
+echo "==> make-icons.mjs"
+node "$SCRIPT_DIR/make-icons.mjs" || echo "  ⚠ Icon generation failed (non-fatal)"
+
+npm run build
+
+# Build electron-builder arch flags
+ARCH_FLAGS=""
+for a in "${ARCHES[@]}"; do
+  ARCH_FLAGS="$ARCH_FLAGS --${a}"
+done
+
+export VERSION="$VERSION"
+# --publish never: release.yml attaches installers via softprops; without this,
+# a git tag triggers implicit GitHub publish and fails when GH_TOKEN is unset.
+npx electron-builder --mac $ARCH_FLAGS --publish never --config electron-builder.yml --c.extraMetadata.version="$VERSION"
+
+popd > /dev/null
+
+# ── 7. Notarization ──
+# Handled by electron-builder afterSign → build/notarize.mjs when
+# APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID are set during pack.
+
+# ── 8. Report ──
+echo ""
+echo "==> Build complete"
+DIST_PACK="$DESKTOP_ELECTRON/dist-pack"
+if [ -d "$DIST_PACK" ]; then
+  echo "Artifacts:"
+  find "$DIST_PACK" -maxdepth 1 -type f \( -name "*.dmg" -o -name "*.zip" \) -exec sh -c '
+    for f; do
+      size=$(stat -f%z "$f" 2>/dev/null || stat --printf="%s" "$f" 2>/dev/null || echo "?")
+      sha=$(shasum -a 256 "$f" | cut -d" " -f1)
+      echo "  $(basename "$f")  ${size} bytes  SHA-256=${sha}"
+    done
+  ' _ {} +
+fi

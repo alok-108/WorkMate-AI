@@ -1,0 +1,220 @@
+import { useTranslation } from 'react-i18next';
+import { X } from 'lucide-react';
+import { useReactFlow } from '@xyflow/react';
+
+import { cn } from '@/lib/utils';
+
+import { useNodeDefinition } from '../graph/registryContext';
+import type { WorkflowEditorNode } from '../graph/serialization';
+import { NodeWidget } from './NodeWidget';
+import { ImageSizeControl, hasImageSizeSlots } from './ImageSizeControl';
+
+interface NodeInspectorProps {
+  node: WorkflowEditorNode;
+  onClose: () => void;
+}
+
+/**
+ * Right-hand config panel for the selected node. Shows every input (including
+ * link-only ones) with its widget, plus output slots. This is also the agent
+ * config surface: `Agent.<name>` nodes expose prompt / max_turns /
+ * allowed_tools / project_path here with full-width editors.
+ */
+export function NodeInspector({ node, onClose }: NodeInspectorProps) {
+  const { t } = useTranslation();
+  const def = useNodeDefinition(node.data.nodeType);
+  const { updateNodeData } = useReactFlow();
+
+  const setValue = (slotId: string, value: unknown) => {
+    updateNodeData(node.id, {
+      values: { ...(node.data.values ?? {}), [slotId]: value },
+    });
+  };
+
+  const setValues = (patch: Record<string, unknown>) => {
+    updateNodeData(node.id, {
+      values: { ...(node.data.values ?? {}), ...patch },
+    });
+  };
+
+  // Merge width + height into one `size` control to match the node canvas.
+  const sizeSlots =
+    def && hasImageSizeSlots(def.inputs)
+      ? {
+          widthSlot: def.inputs.find((s) => s.id === 'width')!,
+          heightSlot: def.inputs.find((s) => s.id === 'height')!,
+        }
+      : null;
+
+  return (
+    <aside className="flex w-80 flex-col border-l border-border bg-surface">
+      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-semibold text-foreground">
+            {node.data.label || def?.displayName || node.data.nodeType}
+          </h3>
+          <p className="truncate text-[10px] text-muted-foreground">
+            {node.data.nodeType}
+          </p>
+        </div>
+        <button
+          className="rounded p-1 text-muted-foreground hover:bg-accent"
+          onClick={onClose}
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="flex-1 space-y-4 overflow-y-auto p-3">
+        <div>
+          <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
+            {t('flowEditor.nodeLabel', 'Label')}
+          </label>
+          <input
+            className="w-full rounded border border-border bg-background px-2 py-1 text-xs outline-none"
+            value={node.data.label}
+            onChange={(e) => updateNodeData(node.id, { label: e.target.value })}
+          />
+        </div>
+
+        {def?.description && (
+          <p className="text-xs text-muted-foreground">{def.description}</p>
+        )}
+
+        {/* ComfyUI-style execution mode: normal / mute (skip) / bypass. */}
+        <div>
+          <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
+            {t('flowEditor.nodeMode', 'Execution mode')}
+          </label>
+          <div className="flex gap-1">
+            {([
+              ['', t('flowEditor.modeNormal', 'Normal')],
+              ['mute', t('flowEditor.modeMute', 'Mute')],
+              ['bypass', t('flowEditor.modeBypass', 'Bypass')],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value || 'normal'}
+                className={cn(
+                  'flex-1 rounded border px-2 py-1 text-[11px] transition-colors',
+                  (node.data.mode ?? '') === value
+                    ? 'border-primary-400 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
+                    : 'border-border text-muted-foreground hover:bg-accent',
+                )}
+                onClick={() =>
+                  updateNodeData(node.id, { mode: value === '' ? undefined : value })
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            {t(
+              'flowEditor.modeHint',
+              'Mute skips the node; bypass passes compatible inputs through to outputs.',
+            )}
+          </p>
+        </div>
+
+        {def && def.inputs.length > 0 && (
+          <div>
+            <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('flowEditor.inputsHeading', 'Inputs')}
+            </h4>
+            <div className="space-y-3">
+              {def.inputs.map((slot) => {
+                // Skip height — it's folded into the unified `size` control.
+                if (sizeSlots && slot.id === 'height') return null;
+
+                if (sizeSlots && slot.id === 'width') {
+                  return (
+                    <div key="size">
+                      <div className="mb-1 flex items-center gap-1.5">
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-full"
+                          style={{ background: slot.color }}
+                          title={slot.type}
+                        />
+                        <label className="text-[11px] font-medium text-foreground">
+                          size
+                        </label>
+                        {slot.optional && (
+                          <span className="text-[9px] text-muted-foreground">optional</span>
+                        )}
+                      </div>
+                      <ImageSizeControl
+                        width={Number(
+                          node.data.values?.width ?? sizeSlots.widthSlot.default ?? 1024,
+                        )}
+                        height={Number(
+                          node.data.values?.height ?? sizeSlots.heightSlot.default ?? 1024,
+                        )}
+                        widthSlot={sizeSlots.widthSlot}
+                        heightSlot={sizeSlots.heightSlot}
+                        onChange={(w, h) => setValues({ width: w, height: h })}
+                      />
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={slot.id}>
+                    <div className="mb-1 flex items-center gap-1.5">
+                      <span
+                        className="inline-block h-2.5 w-2.5 rounded-full"
+                        style={{ background: slot.color }}
+                        title={slot.type}
+                      />
+                      <label className="text-[11px] font-medium text-foreground">
+                        {slot.id}
+                      </label>
+                      {slot.optional && (
+                        <span className="text-[9px] text-muted-foreground">optional</span>
+                      )}
+                    </div>
+                    {slot.widget ? (
+                      <NodeWidget
+                        slot={slot}
+                        value={node.data.values?.[slot.id] ?? slot.default}
+                        onChange={(v) => setValue(slot.id, v)}
+                      />
+                    ) : (
+                      <p className="text-[10px] italic text-muted-foreground">
+                        {t('flowEditor.linkOnlyInput', 'Set by linking an upstream node')}
+                      </p>
+                    )}
+                    {slot.tooltip && (
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        {slot.tooltip}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {def && def.outputs.length > 0 && (
+          <div>
+            <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('flowEditor.outputsHeading', 'Outputs')}
+            </h4>
+            <ul className="space-y-1">
+              {def.outputs.map((slot) => (
+                <li key={slot.id} className="flex items-center gap-1.5 text-xs">
+                  <span
+                    className="inline-block h-2.5 w-2.5 rounded-full"
+                    style={{ background: slot.color }}
+                  />
+                  <span className="text-foreground">{slot.id}</span>
+                  <span className="text-[10px] text-muted-foreground">{slot.type}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}

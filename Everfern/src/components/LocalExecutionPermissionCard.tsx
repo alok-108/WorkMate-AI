@@ -1,0 +1,349 @@
+"use client";
+
+import React, { useRef, useEffect, useState } from "react";
+import { motion } from "framer-motion";
+
+interface LocalExecutionPermissionCardProps {
+  command: string;
+  shellType: "Bash" | "PowerShell";
+  reason: string;
+  agentName: string;
+  onDeny: () => void;
+  onAlwaysAllow: () => void;
+  onAllowOnce: () => void;
+}
+
+/**
+ * LocalExecutionPermissionCard
+ *
+ * Permission prompt shown when the agent wants to run a local command.
+ * Matches EverFern's design language: clean white card, subtle borders,
+ * clear button hierarchy, and an amber status notice.
+ */
+export const LocalExecutionPermissionCard: React.FC<LocalExecutionPermissionCardProps> = ({
+  command,
+  shellType,
+  reason,
+  agentName,
+  onDeny,
+  onAlwaysAllow,
+  onAllowOnce,
+}) => {
+  const denyButtonRef = useRef<HTMLButtonElement>(null);
+  const respondedRef = useRef(false);
+  const [responded, setResponded] = useState(false);
+
+  const handleResponse = (handler: () => void) => {
+    if (respondedRef.current) return;
+    respondedRef.current = true;
+    setResponded(true);
+    handler();
+  };
+
+  // Auto-focus the deny button for safety-first accessibility
+  useEffect(() => {
+    denyButtonRef.current?.focus();
+  }, []);
+
+  // Handle keyboard activation
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      (e.currentTarget as HTMLButtonElement).click();
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
+      style={{ width: "100%" }}
+    >
+      {/* ── Main Card ── */}
+      <div
+        style={{
+          width: "100%",
+          backgroundColor: "var(--color-bg-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: 16,
+          boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+          overflow: "hidden",
+        }}
+      >
+        {/* ── Header ── */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "14px 20px 12px",
+            borderBottom: "1px solid var(--color-border)",
+            backgroundColor: "var(--color-bg-subtle)",
+          }}
+        >
+          {/* Terminal icon badge */}
+          <div
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              backgroundColor: "var(--color-bg-base)",
+              border: "1px solid var(--color-border)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <svg
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--color-text-secondary)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="4 17 10 11 4 5" />
+              <line x1="12" y1="19" x2="20" y2="19" />
+            </svg>
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: 13.5,
+                fontWeight: 600,
+                color: "var(--color-text-primary)",
+                lineHeight: 1.3,
+                fontFamily: "var(--font-sans)",
+              }}
+            >
+              Allow {agentName} to execute a command?
+            </div>
+            {reason && (
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "var(--color-text-secondary)",
+                  marginTop: 2,
+                  lineHeight: 1.4,
+                  fontFamily: "var(--font-sans)",
+                }}
+              >
+                {reason}
+              </div>
+            )}
+          </div>
+
+          {/* Shell badge */}
+          <div
+            style={{
+              flexShrink: 0,
+              fontSize: 11,
+              fontWeight: 600,
+              color: "var(--color-text-secondary)",
+              backgroundColor: "var(--color-bg-base)",
+              border: "1px solid var(--color-border)",
+              padding: "3px 10px",
+              borderRadius: 20,
+              letterSpacing: "0.02em",
+              textTransform: "uppercase",
+              fontFamily: "var(--font-sans)",
+            }}
+          >
+            {shellType}
+          </div>
+        </div>
+
+        {/* ── Command Block ── */}
+        <div
+          style={{
+            padding: "12px 20px",
+            backgroundColor: "var(--color-bg-base)",
+            borderBottom: "1px solid var(--color-border)",
+          }}
+        >
+          <code
+            style={{
+              fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace",
+              fontSize: 13,
+              color: "var(--color-text-primary)",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-all",
+              lineHeight: 1.6,
+              display: "block",
+            }}
+          >
+            {(() => {
+              let cmd = command;
+              const tryMatch = cmd.match(/try\s*\{\s*&\s*\{\s*\$global:LASTEXITCODE\s*=\s*\$null;\s*([\s\S]*?)\s*\}\s*;/i);
+              if (tryMatch && tryMatch[1]) cmd = tryMatch[1];
+              cmd = cmd
+                .replace(/\[Console\]::OutputEncoding\s*=\s*.*?(?:\r?\n|;|$)/gi, '')
+                .replace(/\$OutputEncoding\s*=\s*.*?(?:\r?\n|;|$)/gi, '')
+                .replace(/\$ProgressPreference\s*=\s*.*?(?:\r?\n|;|$)/gi, '')
+                .replace(/\$global:EF_\w+\s*=\s*.*?(?:\r?\n|;|$)/gi, '')
+                .replace(/Set-Location\s+-LiteralPath\s+.*?(?:\r?\n|;|$)/gi, '')
+                .replace(/;\s*if\s*\(\$LASTEXITCODE[\s\S]*$/i, '')
+                .trim();
+              return cmd.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim() || command;
+            })()}
+          </code>
+        </div>
+
+        {/* ── Button Row ── */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 8,
+            padding: "12px 20px",
+            backgroundColor: "var(--color-bg-surface)",
+          }}
+        >
+          {/* Amber "waiting" indicator — left side */}
+          <div
+            style={{
+              marginRight: "auto",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              color: "#d97706",
+              fontSize: 12,
+              fontFamily: "var(--font-sans)",
+            }}
+          >
+            <svg
+              style={{ width: 14, height: 14, animation: "spin 1.2s linear infinite", flexShrink: 0 }}
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" opacity="0.3" />
+              <path
+                opacity="0.8"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+            <span style={{ fontStyle: "italic", color: "#a16207" }}>{responded ? "Response sent…" : "Waiting for your reply…"}</span>
+          </div>
+
+          {/* Deny */}
+          <button
+            ref={denyButtonRef}
+            onClick={() => handleResponse(onDeny)}
+            onKeyDown={handleKeyDown}
+            aria-label="Deny local execution"
+            disabled={responded}
+            style={{
+              padding: "7px 16px",
+              borderRadius: 10,
+              border: "1px solid var(--color-border)",
+              backgroundColor: "var(--color-bg-surface)",
+              color: "var(--color-text-secondary)",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: responded ? "default" : "pointer",
+              opacity: responded ? 0.55 : 1,
+              fontFamily: "var(--font-sans)",
+              transition: "all 0.15s ease",
+              whiteSpace: "nowrap",
+            }}
+            onMouseEnter={e => {
+              if (responded) return;
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--color-bg-hover)";
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-border-strong, var(--color-border))";
+            }}
+            onMouseLeave={e => {
+              if (responded) return;
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--color-bg-surface)";
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-border)";
+            }}
+          >
+            Deny
+          </button>
+
+          {/* Always Allow */}
+          <button
+            onClick={() => handleResponse(onAlwaysAllow)}
+            onKeyDown={handleKeyDown}
+            aria-label="Always allow local execution"
+            disabled={responded}
+            style={{
+              padding: "7px 16px",
+              borderRadius: 10,
+              border: "1px solid var(--color-border)",
+              backgroundColor: "var(--color-bg-surface)",
+              color: "var(--color-text-secondary)",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: responded ? "default" : "pointer",
+              opacity: responded ? 0.55 : 1,
+              fontFamily: "var(--font-sans)",
+              transition: "all 0.15s ease",
+              whiteSpace: "nowrap",
+            }}
+            onMouseEnter={e => {
+              if (responded) return;
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--color-bg-hover)";
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-border-strong, var(--color-border))";
+            }}
+            onMouseLeave={e => {
+              if (responded) return;
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--color-bg-surface)";
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-border)";
+            }}
+          >
+            Always allow
+          </button>
+
+          {/* Allow Once — primary CTA */}
+          <button
+            onClick={() => handleResponse(onAllowOnce)}
+            onKeyDown={handleKeyDown}
+            aria-label="Allow local execution once"
+            disabled={responded}
+            style={{
+              padding: "7px 18px",
+              borderRadius: 10,
+              border: "1px solid var(--color-text-primary)",
+              backgroundColor: "var(--color-text-primary)",
+              color: "var(--color-bg-surface)",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: responded ? "default" : "pointer",
+              opacity: responded ? 0.55 : 1,
+              fontFamily: "var(--font-sans)",
+              transition: "all 0.15s ease",
+              whiteSpace: "nowrap",
+            }}
+            onMouseEnter={e => {
+              if (responded) return;
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--color-text-primary)";
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-text-primary)";
+            }}
+            onMouseLeave={e => {
+              if (responded) return;
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--color-text-primary)";
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-text-primary)";
+            }}
+          >
+            Allow once
+          </button>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
+    </motion.div>
+  );
+};
+
+export default LocalExecutionPermissionCard;

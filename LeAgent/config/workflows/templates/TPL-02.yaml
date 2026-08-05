@@ -1,0 +1,67 @@
+id: TPL-02
+name: 文件夹按类型整理（演示）
+description: 在临时目录创建若干示例文件，按扩展名归入子文件夹；输出路径与移动清单供执行页查看（无需手动输入路径）。
+inputs:
+- name: temp_prefix
+  type: string
+  description: 临时目录名前缀（用于区分多次演示）
+  required: false
+  default: wf-organize
+outputs:
+- name: organize_result
+  type: object
+  description: 整理结果（目录、移动记录、各文件夹数量）
+  value: ${organize_result}
+metadata:
+  category: productivity
+  original_category: productivity
+nodes:
+  start:
+    class_type: StartNode
+    inputs: {}
+    meta:
+      name: ''
+      description: ''
+    control:
+      next: organize
+  organize:
+    class_type: ScriptNode
+    inputs:
+      timeout_sec: 8.0
+      output: organize_result
+      source: "import shutil\nfrom pathlib import Path\nimport tempfile\n\nroot = Path(tempfile.mkdtemp(prefix=f\"\
+        {temp_prefix}-\"))\nsamples = [\n    (\"readme.txt\", \"hello\"),\n    (\"notes.txt\", \"notes\"\
+        ),\n    (\"scan.pdf\", \"%PDF-1.4 demo\"),\n    (\"sheet.csv\", \"a,b\\n1,2\"),\n    (\"thumb.jpg\"\
+        , \"demo-bytes\"),\n]\nfor name, body in samples:\n    (root / name).write_bytes(body.encode(\"\
+        utf-8\"))\n\nmoved = []\nfiles = [p for p in root.iterdir() if p.is_file()]\nexts = sorted({(p.suffix.lower().lstrip(\"\
+        .\") or \"_none\") for p in files})\nfor ext in exts:\n    dest = root / ext\n    dest.mkdir(exist_ok=True)\n\
+        for p in files:\n    ext = p.suffix.lower().lstrip(\".\") or \"_none\"\n    dest_dir = root /\
+        \ ext\n    target = dest_dir / p.name\n    shutil.move(str(p), str(target))\n    moved.append({\"\
+        from\": p.name, \"to\": f\"{ext}/{p.name}\"})\n\ncounts = {}\nfor ext in exts:\n    counts[ext]\
+        \ = len(list((root / ext).iterdir()))\n\nresult = {\n    \"demo_root\": str(root),\n    \"temp_prefix\"\
+        : temp_prefix,\n    \"folders_created\": exts,\n    \"files_moved\": moved,\n    \"counts_by_folder\"\
+        : counts,\n}\nprint(\"organize_done\")\n"
+      inputs:
+        temp_prefix: ${input.temp_prefix}
+    meta:
+      name: 创建示例并按扩展名归档
+      description: ''
+    control:
+      next: end
+  end:
+    class_type: EndNode
+    inputs: {}
+    meta:
+      name: ''
+      description: ''
+      end_output:
+        organize_result: ${organize_result}
+    control: {}
+control:
+  start: start
+  end: end
+  edges: []
+  timeout_sec: 3600
+  max_retries: 3
+  tags:
+  - productivity

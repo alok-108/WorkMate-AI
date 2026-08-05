@@ -1,0 +1,81 @@
+name: Build and Release
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+
+      - name: Install macOS Dependencies
+        if: matrix.os == 'macos-latest'
+        run: brew install vips
+
+      - name: Install Linux Dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            libglib2.0-dev \
+            pkg-config \
+            libvips-dev \
+            libcairo2-dev \
+            libpango1.0-dev \
+            librsvg2-dev \
+            libpixman-1-dev \
+            libgif-dev \
+            libjpeg-dev \
+            libpng-dev \
+            libx11-dev \
+            libxtst-dev \
+            libxkbfile-dev \
+            libxinerama-dev \
+            libxrandr-dev \
+            libxss-dev \
+            build-essential \
+            python3 \
+            python-is-python3 \
+            make \
+            g++
+
+          sudo apt-get install -y libfuse2 || sudo apt-get install -y libfuse2t64 || true
+
+      - name: Install Node Modules
+        run: npm install
+
+      # Recompiles heavy binaries safely for the matching host architecture
+      - name: Compile Native Modules
+        run: npm run rebuild:electron
+
+      - name: Build and Publish
+        run: npm run build -- --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Everfern-${{ matrix.os }}
+          path: release/*
+          if-no-files-found: error

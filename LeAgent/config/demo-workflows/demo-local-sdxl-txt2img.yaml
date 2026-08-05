@@ -1,0 +1,73 @@
+# Demo: text-to-image via the first-class art node (Art.ImageGen).
+# Art.ImageGen calls the unified GenerationService, which picks the best
+# available backend (OpenAI / DashScope) and transparently falls back to a
+# deterministic offline backend when no credentials are configured — so this
+# demo runs end-to-end with zero setup. Set LEAGENT_ART_OFFLINE=1 to force
+# the deterministic offline backend.
+id: demo_local_sdxl_txt2img
+name: "Demo: Concept image (Art.ImageGen)"
+description: >-
+  Generate a concept image from a text prompt using the first-class
+  Art.ImageGen node. Assets travel by reference (MediaRef) and render
+  inline on the canvas — no API key required (offline fallback).
+inputs:
+  - name: prompt
+    type: string
+    required: false
+    default: "a cozy reading nook by a rainy window, warm lamplight, watercolor"
+outputs:
+  - name: image
+    value: "${var.concept_image}"
+  - name: preview_url
+    value: "${var.concept_preview}"
+metadata:
+  category: demo
+  tags:
+    - demo
+    - art
+    - image
+nodes:
+  start:
+    class_type: StartNode
+    inputs: {}
+    meta:
+      name: Start
+    control:
+      next: txt2img
+  txt2img:
+    class_type: Art.ImageGen
+    inputs:
+      prompt: "${input.prompt}"
+      width: 1024
+      height: 1024
+      style: concept_art
+      provider: auto
+      output: concept_image
+    meta:
+      name: Concept image (Art.ImageGen)
+    control:
+      next: store
+  store:
+    class_type: TransformNode
+    inputs:
+      # Link the node's preview_url output (slot 1) into a workflow variable.
+      transform: ["txt2img", 1]
+      output: concept_preview
+    meta:
+      name: Store preview URL
+    control:
+      next: end
+  end:
+    class_type: EndNode
+    inputs: {}
+    meta:
+      name: End
+    control: {}
+control:
+  start: start
+  end: end
+  edges: []
+  timeout_sec: 1800
+  max_retries: 0
+  tags:
+    - demo
