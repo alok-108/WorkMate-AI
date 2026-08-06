@@ -50,6 +50,12 @@ Documenting the rough edges honestly is itself part of the pitch: this is what g
 
 See [`setup-windows.ps1`](setup-windows.ps1) for the Windows setup path (clones each component with the correct license, installs the right tool per repo — `uv` for LeAgent, `pnpm` for coworker, plain `npm` for Everfern/SamarthyaBot — pulls a local Ollama model). See [LICENSING.md](LICENSING.md) before enabling anything beyond the four components listed above.
 
+## Contributing
+
+This is early, and it's built in the open on purpose. If you want to help — code, testing on a non-Windows machine, India-workflow domain knowledge, or just pointing out where the setup script breaks on your setup — see [CONTRIBUTING.md](CONTRIBUTING.md) for where help is actually needed right now.
+
+Want to connect directly, ask about the project's direction, or talk about contributing? Email **alok_ps2603mth16@iitp.ac.in**.
+
 ## License
 
 The integration layer in this repo (`integration/`, `ui/`, `setup-windows.ps1`) is original work. Each vendored component under its own top-level directory retains its own upstream license (LICENSE file included in each) — see [LICENSING.md](LICENSING.md) for the full table and what it means for commercial use.
